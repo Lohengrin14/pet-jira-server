@@ -1,0 +1,23 @@
+# Настройка сервера на Render (Blueprint). Render читает этот файл при подключении репозитория.
+services:
+  - type: web
+    name: pet-jira-server
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: npm ci
+    # Миграции и стартовые данные (только если база пустая), затем запуск
+    startCommand: npx prisma migrate deploy && npx tsx prisma/seed.ts --if-empty && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false # вставляется вручную: строка подключения из Neon
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOW_DEV_LOGIN
+        value: "true"
+      - key: CORS_ORIGINS
+        value: https://lohengrin14.github.io,http://localhost:5173

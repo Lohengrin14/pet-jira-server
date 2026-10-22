@@ -1,26 +1,32 @@
 // Тестовые данные: npm run db:seed (стирает всё и создаёт заново)
+// С флагом --if-empty ничего не трогает, если пользователи уже есть (так seed запускается на Render)
 import 'dotenv/config'
 import { createPrisma } from '../src/db'
 
 const prisma = createPrisma()
+
+if (process.argv.includes('--if-empty') && (await prisma.user.count()) > 0) {
+  console.log('Seed пропущен: в базе уже есть данные')
+  await prisma.$disconnect()
+  process.exit(0)
+}
 
 await prisma.comment.deleteMany()
 await prisma.task.deleteMany()
 await prisma.project.deleteMany()
 await prisma.user.deleteMany()
 
-const [vasily, maria, ivan] = await Promise.all([
-  prisma.user.create({ data: { name: 'Василий', email: 'vasily@pet-jira.local', role: 'ADMIN' } }),
-  prisma.user.create({ data: { name: 'Мария', email: 'maria@pet-jira.local', role: 'MANAGER' } }),
-  prisma.user.create({ data: { name: 'Иван', email: 'ivan@pet-jira.local', role: 'MEMBER' } }),
-  prisma.user.create({ data: { name: 'Ольга', email: 'olga@pet-jira.local', role: 'VIEWER' } }),
-])
+// По одному, чтобы id шли по порядку: Василий = 1, Мария = 2 и т.д.
+const vasily = await prisma.user.create({ data: { name: 'Василий', email: 'vasily@pet-jira.local', role: 'ADMIN' } })
+const maria = await prisma.user.create({ data: { name: 'Мария', email: 'maria@pet-jira.local', role: 'MANAGER' } })
+const ivan = await prisma.user.create({ data: { name: 'Иван', email: 'ivan@pet-jira.local', role: 'MEMBER' } })
+await prisma.user.create({ data: { name: 'Ольга', email: 'olga@pet-jira.local', role: 'VIEWER' } })
 
-const projects = await Promise.all([
-  prisma.project.create({ data: { key: 'PJ1', name: 'Проект 1', color: '#6366f1' } }),
-  prisma.project.create({ data: { key: 'PJ2', name: 'Проект 2', color: '#0ea5a4' } }),
-  prisma.project.create({ data: { key: 'PJ3', name: 'Проект 3', color: '#f59e0b' } }),
-])
+const projects = [
+  await prisma.project.create({ data: { key: 'PJ1', name: 'Проект 1', color: '#6366f1' } }),
+  await prisma.project.create({ data: { key: 'PJ2', name: 'Проект 2', color: '#0ea5a4' } }),
+  await prisma.project.create({ data: { key: 'PJ3', name: 'Проект 3', color: '#f59e0b' } }),
+]
 
 const tasks = [
   { project: 0, title: 'Сверстать страницу входа', status: 'TODO', priority: 'HIGH', author: vasily, assignee: ivan },

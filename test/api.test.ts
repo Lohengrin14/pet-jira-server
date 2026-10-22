@@ -71,6 +71,15 @@ describe('задачи', () => {
     expect((await ctx.as('manager').request('GET', `/tasks/${task.id}`)).statusCode).toBe(404)
   })
 
+  it('DELETE с Content-Type: application/json и пустым телом работает, битый JSON даёт 400', async () => {
+    const task = await createTask('member')
+    const headers = { authorization: `Bearer ${ctx.app.jwt.sign({ sub: ctx.users.manager.id })}`, 'content-type': 'application/json' }
+    const del = await ctx.app.inject({ method: 'DELETE', url: `/tasks/${task.id}`, headers })
+    expect(del.statusCode).toBe(204)
+    const broken = await ctx.app.inject({ method: 'POST', url: '/tasks', headers, payload: '{oops' })
+    expect(broken.statusCode).toBe(400)
+  })
+
   it('фильтр по статусу', async () => {
     const task = await createTask('member')
     await createTask('member')
