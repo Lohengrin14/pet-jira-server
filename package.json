@@ -1,0 +1,41 @@
+{
+  "name": "pet-jira-server",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lohengrin14/pet-jira-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Lohengrin14/pet-jira-server/issues"
+  },
+  "homepage": "https://github.com/Lohengrin14/pet-jira-server#readme",
+  "type": "module",
+  "private": "true",
+  "dependencies": {
+    "@fastify/cors": "^11.3.1",
+    "@fastify/jwt": "^10.2.5",
+    "@prisma/adapter-better-sqlite3": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "dotenv": "^18.0.8",
+    "fastify": "^5.12.7",
+    "fastify-plugin": "^6.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "prisma": "^7.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
