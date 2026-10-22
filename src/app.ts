@@ -29,6 +29,17 @@ export async function buildApp(opts: AppOptions) {
   const app = Fastify({ logger: opts.logger ?? false })
 
   app.decorate('prisma', opts.prisma)
+
+  // Пустое тело с Content-Type: application/json (например, DELETE из fetch-обёртки) не считаем ошибкой
+  app.removeContentTypeParser('application/json')
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_request, body, done) => {
+    if (body === '') return done(null, undefined)
+    try {
+      done(null, JSON.parse(body as string))
+    } catch {
+      done(new HttpError(400, 'Тело запроса не JSON'), undefined)
+    }
+  })
   await app.register(cors, { origin: opts.corsOrigins, methods: ['GET', 'POST', 'PATCH', 'DELETE'] })
   await app.register(authPlugin, { secret: opts.jwtSecret })
 

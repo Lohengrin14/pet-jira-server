@@ -14,16 +14,17 @@
 - Node.js 22, TypeScript (без сборки: запускаем через `tsx`, типы проверяет `tsc --noEmit`)
 - Fastify 5: HTTP-сервер
 - Prisma 7: схема и миграции в `prisma/`, клиент генерируется в `src/generated/prisma` (не коммитим)
-- SQLite локально (`dev.db`), позже Postgres
+- PostgreSQL 16: локально (Docker), в проде Neon
 - zod: проверка входящих данных
-- Vitest: тесты, отдельная база `test.db`
+- Vitest: тесты, отдельная база `petjira_test` (или `TEST_DATABASE_URL`)
+- Деплой: Render (`render.yaml`), база Neon
 
 ## Команды
 
 ```bash
 npm install            # зависимости + генерация Prisma-клиента
-cp .env.example .env   # первый запуск
-npm run db:migrate     # применить миграции к dev.db (и создать новую после правки схемы)
+cp .env.example .env   # первый запуск; там же команда для Postgres в Docker
+npm run db:migrate     # применить миграции (и создать новую после правки схемы)
 npm run db:seed        # тестовые пользователи, проекты, задачи (стирает данные!)
 npm run dev            # сервер на http://localhost:3000 с перезапуском при изменениях
 npm run typecheck      # проверка типов
@@ -39,7 +40,8 @@ npm run db:studio      # веб-админка базы
 | --- | --- |
 | `prisma/schema.prisma` | Таблицы: User, Project, Task, Comment и enum'ы ролей, статусов, приоритетов |
 | `prisma/migrations/` | История миграций. Руками не правим, создаём через `npm run db:migrate -- --name <имя>` |
-| `prisma/seed.ts` | Тестовые данные |
+| `prisma/seed.ts` | Тестовые данные (`--if-empty` — только в пустую базу) |
+| `render.yaml` | Настройка деплоя на Render: сборка, миграции и seed при старте |
 | `src/app.ts` | Сборка приложения: плагины, роуты, единый обработчик ошибок |
 | `src/server.ts` | Точка входа: читает `.env` и запускает сервер |
 | `src/auth.ts` | JWT: проверка токена, `request.currentUser` |
@@ -93,5 +95,6 @@ npm run db:studio      # веб-админка базы
   из `src/errors.ts`, обработчик в `app.ts` сам отдаст правильный код.
 - Каждый новый эндпоинт или правило доступа — с тестом в `test/api.test.ts`.
 - Тексты ошибок и комментарии в коде — по-русски, имена в коде — по-английски.
-- Не коммитим `.env`, `*.db`, `src/generated/`.
+- Не коммитим `.env`, `src/generated/`.
+- Миграции применяются на Render автоматически при каждом деплое (`prisma migrate deploy` в `startCommand`).
 - Работаем в отдельной ветке и открываем Pull Request в `main`, напрямую в `main` не пушим.
