@@ -64,6 +64,13 @@ describe('задачи', () => {
     expect(res.statusCode).toBe(403)
   })
 
+  it('VIEWER получает понятную ошибку при попытке изменить задачу', async () => {
+    const task = await createTask('member')
+    const res = await ctx.as('viewer').request('PATCH', `/tasks/${task.id}`, { status: 'DONE' })
+    expect(res.statusCode).toBe(403)
+    expect(res.json().error).toBe('VIEWER не может менять задачи')
+  })
+
   it('MEMBER не удаляет даже свою задачу, MANAGER удаляет любую', async () => {
     const task = await createTask('member')
     expect((await ctx.as('member').request('DELETE', `/tasks/${task.id}`)).statusCode).toBe(403)
@@ -122,17 +129,68 @@ describe('комментарии', () => {
   })
 })
 
-describe('пользователи и проекты', () => {
+describe('пользователи', () => {
   it('роль меняет только ADMIN', async () => {
     const url = `/users/${ctx.users.member.id}`
-    expect((await ctx.as('manager').request('PATCH', url, { role: 'ADMIN' })).statusCode).toBe(403)
-    const res = await ctx.as('admin').request('PATCH', url, { role: 'MANAGER' })
-    expect(res.json().role).toBe('MANAGER')
+    const denied = await ctx.as('manager').request('PATCH', url, { name: 'Иван' })
+    expect(denied.statusCode).toBe(403)
+    expect(denied.json().error).toBe('Пользователями управляет только ADMIN')
+    const res = await ctx.as('admin').request('PATCH', url, { role: 'MANAGER', email: 'NEW@Test.local' })
+    expect(res.json()).toMatchObject({ role: 'MANAGER', email: 'new@test.local' })
   })
 
+  it('ADMIN создаёт пользователя, email уникален и проверяется', async () => {
+    const created = await ctx.as('admin').request('POST', '/users', { name: 'Пётр', email: 'petr@test.local' })
+    expect(created.statusCode).toBe(201)
+    expect(created.json()).toMatchObject({ name: 'Пётр', role: 'MEMBER' })
+    const duplicate = await ctx.as('admin').request('POST', '/users', { name: 'Дубль', email: 'PETR@test.local' })
+    expect(duplicate.statusCode).toBe(409)
+    expect(duplicate.json().error).toBe('Пользователь с таким email уже есть')
+    expect((await ctx.as('admin').request('POST', '/users', { name: 'X', email: 'не email' })).statusCode).toBe(400)
+    expect((await ctx.as('manager').request('POST', '/users', { name: 'X', email: 'x@test.local' })).statusCode).toBe(403)
+  })
+
+  it('ADMIN не может снять с себя роль и удалить себя', async () => {
+    const url = `/users/${ctx.users.admin.id}`
+    expect((await ctx.as('admin').request('PATCH', url, { role: 'MEMBER' })).statusCode).toBe(400)
+    expect((await ctx.as('admin').request('DELETE', url)).statusCode).toBe(400)
+  })
+
+  it('удаление: исполнителя снимаем с задач, автора задач не удаляем', async () => {
+    const task = await createTask('member', { assigneeId: ctx.users.other.id })
+    expect((await ctx.as('admin').request('DELETE', `/users/${ctx.users.member.id}`)).statusCode).toBe(409)
+    expect((await ctx.as('manager').request('DELETE', `/users/${ctx.users.other.id}`)).statusCode).toBe(403)
+    expect((await ctx.as('admin').request('DELETE', `/users/${ctx.users.other.id}`)).statusCode).toBe(204)
+    const fresh = await ctx.as('admin').request('GET', `/tasks/${task.id}`)
+    expect(fresh.json().assignee).toBeNull()
+  })
+
+  it('токен удалённого пользователя больше не работает', async () => {
+    await ctx.as('admin').request('DELETE', `/users/${ctx.users.viewer.id}`)
+    expect((await ctx.as('viewer').request('GET', '/tasks')).statusCode).toBe(401)
+  })
+})
+
+describe('проекты', () => {
   it('проект создают ADMIN и MANAGER, ключ уникален', async () => {
     expect((await ctx.as('member').request('POST', '/projects', { key: 'NEW', name: 'Новый' })).statusCode).toBe(403)
     expect((await ctx.as('manager').request('POST', '/projects', { key: 'new', name: 'Новый' })).json().key).toBe('NEW')
     expect((await ctx.as('manager').request('POST', '/projects', { key: 'PJ1', name: 'Дубль' })).statusCode).toBe(409)
+  })
+
+  it('название и цвет меняются, ключ нет', async () => {
+    const url = `/projects/${ctx.project.id}`
+    expect((await ctx.as('member').request('PATCH', url, { name: 'X' })).statusCode).toBe(403)
+    expect((await ctx.as('admin').request('PATCH', url, { color: 'red' })).statusCode).toBe(400)
+    const res = await ctx.as('manager').request('PATCH', url, { name: 'Главный', color: '#ff0000', key: 'ZZZ' })
+    expect(res.json()).toMatchObject({ name: 'Главный', color: '#ff0000', key: 'PJ1' })
+  })
+
+  it('проект с задачами не удаляется, пустой удаляется', async () => {
+    await createTask('member')
+    expect((await ctx.as('admin').request('DELETE', `/projects/${ctx.project.id}`)).statusCode).toBe(409)
+    const empty = (await ctx.as('admin').request('POST', '/projects', { key: 'EMPTY', name: 'Пустой' })).json()
+    expect((await ctx.as('member').request('DELETE', `/projects/${empty.id}`)).statusCode).toBe(403)
+    expect((await ctx.as('admin').request('DELETE', `/projects/${empty.id}`)).statusCode).toBe(204)
   })
 })
