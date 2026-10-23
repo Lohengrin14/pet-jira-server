@@ -17,6 +17,10 @@ services:
         sync: false # вставляется вручную: строка подключения из Neon
       - key: JWT_SECRET
         generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false # OAuth Client ID из Google Cloud Console (не секрет, но свой для каждого проекта)
+      - key: ADMIN_EMAILS
+        value: kocuxun@gmail.com
       - key: ALLOW_DEV_LOGIN
         value: "true"
       - key: CORS_ORIGINS

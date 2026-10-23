@@ -21,9 +21,56 @@ describe('вход', () => {
     expect(me.json()).toMatchObject({ name: 'member', role: 'MEMBER' })
   })
 
-  it('без токена задачи не отдаются', async () => {
-    const res = await ctx.app.inject({ method: 'GET', url: '/tasks' })
-    expect(res.statusCode).toBe(401)
+  it('без токена задачи и пользователи не отдаются', async () => {
+    expect((await ctx.app.inject({ method: 'GET', url: '/tasks' })).statusCode).toBe(401)
+    expect((await ctx.app.inject({ method: 'GET', url: '/users' })).statusCode).toBe(401)
+  })
+
+  it('/auth/options сообщает, какие способы входа включены', async () => {
+    const res = await ctx.app.inject({ method: 'GET', url: '/auth/options' })
+    expect(res.json()).toEqual({ googleClientId: 'test-client-id', devLogin: true })
+  })
+
+  it('тестовый вход не пускает в ADMIN и в Google-аккаунты', async () => {
+    const list = await ctx.app.inject({ method: 'GET', url: '/auth/dev-users' })
+    expect(list.json().map((u: { name: string }) => u.name)).toEqual(['manager', 'member', 'other', 'viewer'])
+    const admin = await ctx.app.inject({ method: 'POST', url: '/auth/dev-login', payload: { userId: ctx.users.admin.id } })
+    expect(admin.statusCode).toBe(403)
+
+    const google = (await googleLogin('google:g-1:anna@gmail.com:Анна')).json()
+    const asGoogle = await ctx.app.inject({ method: 'POST', url: '/auth/dev-login', payload: { userId: google.user.id } })
+    expect(asGoogle.statusCode).toBe(403)
+  })
+})
+
+function googleLogin(credential: string) {
+  return ctx.app.inject({ method: 'POST', url: '/auth/google', payload: { credential } })
+}
+
+describe('вход через Google', () => {
+  it('новый пользователь создаётся наблюдателем, повторный вход находит его же', async () => {
+    const first = await googleLogin('google:g-1:anna@gmail.com:Анна')
+    expect(first.statusCode).toBe(200)
+    expect(first.json().user).toMatchObject({ name: 'Анна', email: 'anna@gmail.com', role: 'VIEWER' })
+    const again = await googleLogin('google:g-1:anna@gmail.com:Анна')
+    expect(again.json().user.id).toBe(first.json().user.id)
+    const me = await ctx.app.inject({ method: 'GET', url: '/me', headers: { authorization: `Bearer ${again.json().token}` } })
+    expect(me.json().email).toBe('anna@gmail.com')
+  })
+
+  it('email из ADMIN_EMAILS получает роль ADMIN (регистр не важен)', async () => {
+    const res = await googleLogin('google:g-2:boss@gmail.com:Босс')
+    expect(res.json().user.role).toBe('ADMIN')
+  })
+
+  it('пользователь, заведённый админом заранее, привязывается по email и сохраняет роль', async () => {
+    const res = await googleLogin('google:g-3:member@test.local:Кто-то')
+    expect(res.json().user).toMatchObject({ id: ctx.users.member.id, name: 'member', role: 'MEMBER' })
+  })
+
+  it('неподтверждённый токен отклоняется', async () => {
+    expect((await googleLogin('fake')).statusCode).toBe(401)
+    expect((await googleLogin('')).statusCode).toBe(400)
   })
 })
 

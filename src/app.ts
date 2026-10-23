@@ -5,6 +5,7 @@ import { authPlugin } from './auth'
 import type { PrismaClient } from './db'
 import { HttpError } from './errors'
 import { Prisma } from './generated/prisma/client'
+import type { GoogleVerifier } from './google'
 import { authRoutes } from './routes/auth'
 import { commentRoutes } from './routes/comments'
 import { projectRoutes } from './routes/projects'
@@ -21,6 +22,11 @@ export type AppOptions = {
   prisma: PrismaClient
   jwtSecret: string
   allowDevLogin: boolean
+  // Вход через Google: Client ID из Google Cloud и функция проверки токена
+  googleClientId?: string
+  verifyGoogle?: GoogleVerifier
+  // Эти email при входе через Google получают роль ADMIN
+  adminEmails?: string[]
   corsOrigins: string[]
   logger?: boolean
 }
@@ -62,8 +68,13 @@ export async function buildApp(opts: AppOptions) {
   })
 
   app.get('/health', async () => ({ ok: true }))
-  await app.register(authRoutes, { allowDevLogin: opts.allowDevLogin })
-  await app.register(userRoutes, { allowDevLogin: opts.allowDevLogin })
+  await app.register(authRoutes, {
+    allowDevLogin: opts.allowDevLogin,
+    googleClientId: opts.googleClientId,
+    verifyGoogle: opts.verifyGoogle,
+    adminEmails: (opts.adminEmails ?? []).map((e) => e.toLowerCase()),
+  })
+  await app.register(userRoutes)
   await app.register(projectRoutes)
   await app.register(taskRoutes)
   await app.register(commentRoutes)

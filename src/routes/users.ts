@@ -15,9 +15,9 @@ const userFields = {
   role: z.enum(Role),
 }
 
-export async function userRoutes(app: FastifyInstance, opts: { allowDevLogin: boolean }) {
-  // Список для входа в режиме мока доступен без токена, иначе только после входа
-  app.get('/users', { onRequest: opts.allowDevLogin ? [] : app.authenticate }, async () =>
+export async function userRoutes(app: FastifyInstance) {
+  // Список для входа без пароля отдаёт GET /auth/dev-users, здесь только после входа
+  app.get('/users', { onRequest: app.authenticate }, async () =>
     app.prisma.user.findMany({ select: userSelect, orderBy: { id: 'asc' } }),
   )
 
