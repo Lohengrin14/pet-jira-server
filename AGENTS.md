@@ -60,10 +60,13 @@ npm run db:studio      # веб-админка базы
 | Удалять задачи | ✓ | ✓ | – | – |
 | Комментировать | ✓ | ✓ | ✓ | – |
 | Удалять комментарий | любой | любой | только свой | – |
-| Создавать проекты | ✓ | ✓ | – | – |
-| Менять роли пользователей | ✓ | – | – | – |
+| Создавать, менять, удалять пустые проекты | ✓ | ✓ | – | – |
+| Создавать, менять, удалять пользователей | ✓ | – | – | – |
 
 \* «Своя» задача — где пользователь автор или исполнитель.
+
+ADMIN не может снять роль ADMIN с себя и удалить себя. Пользователя, у которого есть задачи
+или комментарии, не удаляем (409): вместо этого ему меняют роль на VIEWER.
 
 Меняете правила — меняйте `src/permissions.ts`, таблицу выше и тесты в одном изменении.
 
@@ -74,8 +77,10 @@ npm run db:studio      # веб-админка базы
 
 - `POST /auth/dev-login` `{ userId }` → `{ token, user }` — вход без пароля, только при `ALLOW_DEV_LOGIN=true`
 - `GET /me`
-- `GET /users`, `PATCH /users/:id` `{ role?, name? }` (ADMIN)
+- `GET /users`
+- `POST /users` `{ name, email, role? }`, `PATCH /users/:id` `{ name?, email?, role? }`, `DELETE /users/:id` (ADMIN)
 - `GET /projects`, `POST /projects` `{ key, name, color? }`
+- `PATCH /projects/:id` `{ name?, color? }` (ключ не меняется), `DELETE /projects/:id` (только без задач)
 - `GET /tasks?projectId=&status=&assigneeId=`, `GET /tasks/:id`
 - `POST /tasks` `{ projectId, title, description?, priority?, assigneeId? }`
 - `PATCH /tasks/:id` `{ title?, description?, status?, priority?, assigneeId? }`
@@ -95,6 +100,7 @@ npm run db:studio      # веб-админка базы
   из `src/errors.ts`, обработчик в `app.ts` сам отдаст правильный код.
 - Каждый новый эндпоинт или правило доступа — с тестом в `test/api.test.ts`.
 - Тексты ошибок и комментарии в коде — по-русски, имена в коде — по-английски.
+- Сообщения коммитов, названия и описания Pull Request — на английском.
 - Не коммитим `.env`, `src/generated/`.
 - Миграции применяются на Render автоматически при каждом деплое (`prisma migrate deploy` в `startCommand`).
 - Работаем в отдельной ветке и открываем Pull Request в `main`, напрямую в `main` не пушим.

@@ -87,7 +87,11 @@ export async function taskRoutes(app: FastifyInstance) {
     const body = z.object(taskFields).partial().parse(request.body)
     const task = await findTask(id)
     if (!can.editTask(request.currentUser, task)) {
-      throw forbidden('MEMBER может менять только свои задачи (где он автор или исполнитель)')
+      throw forbidden(
+        request.currentUser.role === 'VIEWER'
+          ? 'VIEWER не может менять задачи'
+          : 'MEMBER может менять только свои задачи (где он автор или исполнитель)',
+      )
     }
     await assertUserExists(body.assigneeId)
     const updated = await app.prisma.task.update({ where: { id }, data: body, include: taskInclude })
