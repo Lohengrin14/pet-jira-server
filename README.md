@@ -29,8 +29,8 @@ npm run dev        # http://localhost:3000
 
 ```bash
 curl http://localhost:3000/health
-curl http://localhost:3000/users
-curl -X POST http://localhost:3000/auth/dev-login -H 'content-type: application/json' -d '{"userId":1}'
+curl http://localhost:3000/auth/dev-users
+curl -X POST http://localhost:3000/auth/dev-login -H 'content-type: application/json' -d '{"userId":2}'
 ```
 
 Тесты: `npm test`. Данные в базе можно посмотреть в браузере: `npm run db:studio`.
@@ -39,7 +39,17 @@ curl -X POST http://localhost:3000/auth/dev-login -H 'content-type: application/
 
 `render.yaml` описывает сервис: регион Frankfurt, бесплатный план. При каждом старте сервер
 применяет миграции и, если база пустая, заливает тестовые данные. Секрет `JWT_SECRET` Render
-генерирует сам, `DATABASE_URL` (строка подключения из Neon, без pooling) вставляется вручную.
+генерирует сам, `DATABASE_URL` (строка подключения из Neon, без pooling) и `GOOGLE_CLIENT_ID`
+вставляются вручную. `ADMIN_EMAILS` — кто получает роль ADMIN при входе через Google.
+
+### Вход через Google
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → OAuth consent screen:
+   тип External, название приложения, свой email.
+2. Credentials → Create credentials → OAuth client ID → Web application.
+   Authorized JavaScript origins: `https://lohengrin14.github.io` и `http://localhost:5173`.
+3. Скопировать Client ID (вида `123-abc.apps.googleusercontent.com`) в `GOOGLE_CLIENT_ID` на Render.
+   Это не секрет: он и так виден в браузере.
 
 Бесплатный сервер засыпает после 15 минут без запросов, первый запрос после этого идёт около минуты.
 

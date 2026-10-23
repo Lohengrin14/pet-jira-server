@@ -45,6 +45,7 @@ npm run db:studio      # веб-админка базы
 | `src/app.ts` | Сборка приложения: плагины, роуты, единый обработчик ошибок |
 | `src/server.ts` | Точка входа: читает `.env` и запускает сервер |
 | `src/auth.ts` | JWT: проверка токена, `request.currentUser` |
+| `src/google.ts` | Проверка ID-токена Google (`google-auth-library`) |
 | `src/permissions.ts` | **Все правила доступа.** Роуты спрашивают `can.*`, а не проверяют роли сами |
 | `src/routes/*.ts` | Эндпоинты: auth, users, projects, tasks, comments |
 | `src/serialize.ts` | Формат задач в ответах (ключ `PJ1-12`, автор, исполнитель, число комментариев) |
@@ -72,10 +73,14 @@ ADMIN не может снять роль ADMIN с себя и удалить с
 
 ## API
 
-Все запросы, кроме `POST /auth/dev-login`, `GET /health` и `GET /users` (в режиме мока),
-требуют заголовок `Authorization: Bearer <token>`.
+Все запросы, кроме `/health` и `/auth/*` (без `/me`), требуют заголовок `Authorization: Bearer <token>`.
 
-- `POST /auth/dev-login` `{ userId }` → `{ token, user }` — вход без пароля, только при `ALLOW_DEV_LOGIN=true`
+- `GET /auth/options` → `{ googleClientId, devLogin }` — какие способы входа включены
+- `POST /auth/google` `{ credential }` → `{ token, user }` — вход по ID-токену Google (`GOOGLE_CLIENT_ID`).
+  Новый пользователь создаётся с ролью VIEWER, email из `ADMIN_EMAILS` получают ADMIN.
+  Если пользователь с таким email уже есть (завёл админ), Google-аккаунт привязывается к нему.
+- `GET /auth/dev-users`, `POST /auth/dev-login` `{ userId }` → `{ token, user }` — вход без пароля,
+  только при `ALLOW_DEV_LOGIN=true` и только в тестовых пользователей (не ADMIN и без Google)
 - `GET /me`
 - `GET /users`
 - `POST /users` `{ name, email, role? }`, `PATCH /users/:id` `{ name?, email?, role? }`, `DELETE /users/:id` (ADMIN)

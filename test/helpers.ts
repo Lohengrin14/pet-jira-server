@@ -1,10 +1,20 @@
 import { buildApp } from '../src/app'
 import { createPrisma } from '../src/db'
+import { HttpError } from '../src/errors'
+import type { GoogleVerifier } from '../src/google'
 import type { Role } from '../src/generated/prisma/enums'
 
 export async function setupTestApp() {
   const prisma = createPrisma()
-  const app = await buildApp({ prisma, jwtSecret: 'test-secret', allowDevLogin: true, corsOrigins: [] })
+  const app = await buildApp({
+    prisma,
+    jwtSecret: 'test-secret',
+    allowDevLogin: true,
+    corsOrigins: [],
+    googleClientId: 'test-client-id',
+    verifyGoogle: fakeGoogle,
+    adminEmails: ['Boss@Gmail.com'],
+  })
 
   await prisma.comment.deleteMany()
   await prisma.task.deleteMany()
@@ -33,4 +43,11 @@ export async function setupTestApp() {
   })
 
   return { app, prisma, users, project, as }
+}
+
+// Вместо настоящего Google: токен вида "google:<id>:<email>:<имя>", всё остальное отклоняем
+const fakeGoogle: GoogleVerifier = async (credential) => {
+  const [prefix, googleId, email, name] = credential.split(':')
+  if (prefix !== 'google') throw new HttpError(401, 'Google не подтвердил вход, попробуйте ещё раз')
+  return { googleId, email, name }
 }
