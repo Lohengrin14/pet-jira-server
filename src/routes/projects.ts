@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { forbidden, HttpError, notFound } from '../errors'
+import { failOnDuplicate, forbidden, HttpError, notFound } from '../errors'
 import { can } from '../permissions'
 
 const projectSelect = { id: true, key: true, name: true, color: true } as const
@@ -25,7 +25,10 @@ export async function projectRoutes(app: FastifyInstance) {
         color: projectFields.color.optional(),
       })
       .parse(request.body)
-    const project = await app.prisma.project.create({ data: body, select: projectSelect })
+    const project = await failOnDuplicate(
+      app.prisma.project.create({ data: body, select: projectSelect }),
+      'Проект с таким ключом уже есть',
+    )
     return reply.code(201).send(project)
   })
 

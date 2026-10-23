@@ -1,11 +1,13 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { forbidden, HttpError, notFound } from '../errors'
+import { failOnDuplicate, forbidden, HttpError, notFound } from '../errors'
 import { Role } from '../generated/prisma/enums'
 import { type Actor, can } from '../permissions'
 import { userSelect } from '../serialize'
 
 const idParams = z.object({ id: z.coerce.number().int() })
+
+const DUPLICATE_EMAIL = 'Пользователь с таким email уже есть'
 
 const userFields = {
   name: z.string().trim().min(1, 'Имя не может быть пустым').max(80),
@@ -29,7 +31,7 @@ export async function userRoutes(app: FastifyInstance, opts: { allowDevLogin: bo
     const body = z
       .object({ name: userFields.name, email: userFields.email, role: userFields.role.optional() })
       .parse(request.body)
-    const user = await app.prisma.user.create({ data: body, select: userSelect })
+    const user = await failOnDuplicate(app.prisma.user.create({ data: body, select: userSelect }), DUPLICATE_EMAIL)
     return reply.code(201).send(user)
   })
 
@@ -43,7 +45,7 @@ export async function userRoutes(app: FastifyInstance, opts: { allowDevLogin: bo
     if (id === request.currentUser.id && body.role && body.role !== 'ADMIN') {
       throw new HttpError(400, 'Нельзя снять роль ADMIN с самого себя')
     }
-    return app.prisma.user.update({ where: { id }, data: body, select: userSelect })
+    return failOnDuplicate(app.prisma.user.update({ where: { id }, data: body, select: userSelect }), DUPLICATE_EMAIL)
   })
 
   app.delete('/users/:id', { onRequest: app.authenticate }, async (request, reply) => {
